@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Passkey Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-exp.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-icons.min.css">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            max-width: 100%;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        .columns {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+
+        .column {
+            flex: 1;
+            margin-bottom: 20px;
+            margin-top: 20px;
+        }
+
+        .card {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        @media screen and (min-width: 768px) {
+            .column {
+                width: 48%;
+            }
+        }
+
+        @media screen and (max-width: 767px) {
+            .column {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="columns">
+            <div class="column">
+                <div class="card">
+                    <h4>Sign Up</h4>
+                    <div class="card-body">
+                        <form id="register" onsubmit="return false">
+                            <input type="text" name="username" placeholder="Username"><br>
+                            <button class="btn" action="submit">Create a Passkey</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="column">
+                <div class="card">
+                    <h4>Sign In</h4>
+                    <div class="card-body">
+                        <form id="login" onsubmit="return false">
+                            <input type="text" name="username" placeholder="Username"><br>
+                            <button class="btn" action="submit">Login with Passkey</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('register').addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            let username = this.username.value;
+            let password = '123';
+            let displayName = username;
+
+            registerPassword({ username, password, displayName })
+                .then((serverResponse) => {
+                    if (serverResponse.status !== 'startFIDOEnrolment')
+                        throw new Error('Error registering user! Server returned: ' + serverResponse.errorMessage);
+
+                    return getMakeCredentialChallenge({ 'attestation': 'none' }) //passing as a option or just leave it blank.
+                })
+                .then((makeCredChallenge) => {
+                    console.log("Attestation options: ", JSON.stringify(makeCredChallenge));
+                    makeCredChallenge = preformatMakeCredReq(makeCredChallenge);
+                    return navigator.credentials.create({ 'publicKey': makeCredChallenge })
+                })
+                .then((newCredentialInfo) => {
+                    newCredentialInfo = publicKeyCredentialToJSON(newCredentialInfo)
+                    console.log("Attestation response: ", JSON.stringify(newCredentialInfo));
+
+                    return makeCredentialResponse(newCredentialInfo)
+                })
+                .then((serverResponse) => {
+                    if (serverResponse.status !== 'ok')
+                        throw new Error('Error registering user! Server returned: ' + serverResponse.errorMessage);
+
+                    alert('Registration Successful!');
+                })
+                .catch((error) => {
+                    alert('Fail: ' + error.errorMessage === undefined ? error : error.errorMessage)
+                    console.log('Fail: ', error)
+                })
+        })
+
+        document.getElementById('login').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            let username = this.username.value;
+            let password = '123';
+
+            loginPassword({ username, password })
+                .then((serverResponse) => {
+                    if (serverResponse.status !== 'startFIDOAuthentication')
+                        throw new Error('Error logging in : ', serverResponse.errorMessage)
+
+                    return getAssertionChallenge();
+                })
+                .then((getAssertionChallenge) => {
+                    console.log("Assertion Challenge :", JSON.stringify(getAssertionChallenge))
+                    getAssertionChallenge = preformatGetAssertReq(getAssertionChallenge)
+
+                    return navigator.credentials.get({ 'publicKey': getAssertionChallenge })
+                })
+                .then((newCredentialInfo) => {
+                    newCredentialInfo = publicKeyCredentialToJSON(newCredentialInfo);
+                    console.log("Assertion result: ", JSON.stringify(newCredentialInfo))
+
+                    return getAssertionResponse(newCredentialInfo);
+                })
+                .then((serverResponse) => {
+                    if (serverResponse.status !== 'ok') {
+                        throw new Error("error: ", serverResponse.errorMessage)
+                    } else {
+                        window.location.href = 'fidoapp://callback'
+                    }
+                })
+                .catch((e) => {
+                    console.log(e);
+                    alert(e);
+                })
+        })
+
+    </script>
+    <script src="./base64url.js"></script>
+    <script src="./cbor.js"></script>
+    <script src="./helper.js"></script>
+    <script src="./server.js"></script>
+</body>
+
+</html>
