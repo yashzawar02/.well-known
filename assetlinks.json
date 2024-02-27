@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "fido",
+      "package_name": "com.jioid.fidoapp",
+      "sha256_cert_fingerprints": [
+        "60:D8:24:12:AE:4C:71:67:36:88:17:99:AC:70:12:E8:3A:F8:40:96:47:C0:2B:98:6D:41:52:CD:19:D6:0E:77"
+      ]
+    }
+  }
+]
